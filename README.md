@@ -40,6 +40,9 @@ import vuepressPluginTypedjs2 from "vuepress-plugin-typedjs2";
 
 > 如果您需要暂停打字效果，请使用`^`+ 时间，就是在该地方停留多久，单位是毫秒
 
+### 例子
+> https://sc-catch-doc.pages.dev/
+
 
 ```js
 {
