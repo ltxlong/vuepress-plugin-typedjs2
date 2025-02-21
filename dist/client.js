@@ -1,5 +1,6 @@
 import { defineClientConfig } from "@vuepress/client";
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import Typed from "typed.js";
 const deserializeFunctions = (options) => {
     const deserialized = {};
@@ -15,9 +16,11 @@ const deserializeFunctions = (options) => {
 };
 export default defineClientConfig({
     setup() {
+        const router = useRouter();
         let options = deserializeFunctions(TYPED_OPTIONS);
         let timerId = null;
         let retryCount = 0;
+        let typedInstance = null;
         const MAX_RETRIES = 10;
         if (Object.keys(options).length === 0) {
             console.error("Typed.js: No options provided");
@@ -29,22 +32,55 @@ export default defineClientConfig({
                 timerId = null;
             }
         };
-        const querySelector = () => {
+        const destroyTyped = () => {
+            if (typedInstance) {
+                typedInstance.destroy();
+                typedInstance = null;
+            }
+        };
+        const resetRetryCount = () => {
+            retryCount = 0;
+        };
+        const initializeTyped = () => {
             const elements = document.querySelectorAll(options.selector);
             if (elements.length > 0) {
                 clearTimer();
-                new Typed(options.selector, options);
+                destroyTyped();
+                typedInstance = new Typed(options.selector, options);
             }
             else if (retryCount < MAX_RETRIES) {
                 retryCount++;
-                timerId = setTimeout(querySelector, 200);
+                timerId = setTimeout(initializeTyped, 200);
             }
             else {
                 console.error('Typed.js: No element found with selector "' + options.selector + '".');
             }
         };
+        const handleRouteChange = (to) => {
+            if (to.path === '/') {
+                resetRetryCount();
+                // 给DOM一点时间来更新
+                setTimeout(() => {
+                    initializeTyped();
+                }, 100);
+            }
+            else {
+                clearTimer();
+                destroyTyped();
+            }
+        };
+        // 监听路由变化
+        router.afterEach((to) => {
+            handleRouteChange(to);
+        });
         onMounted(() => {
-            querySelector();
+            if (router.currentRoute.value.path === '/') {
+                initializeTyped();
+            }
+        });
+        onUnmounted(() => {
+            clearTimer();
+            destroyTyped();
         });
     },
 });
