@@ -67,17 +67,43 @@ export default defineClientConfig({
       }
     };
 
+    const shouldInitialize = (path: string): boolean => {
+      // 如果没有配置白名单，则所有页面都生效
+      if (!options.withePathList || !Array.isArray(options.withePathList) || options.withePathList.length === 0) {
+        return true;
+      }
+
+      // 移除路径中的文件后缀（如 .html, .md 等）
+      const normalizedPath = path.replace(/\.[^/.]+$/, '');
+
+      // 检查当前路径是否在白名单中
+      return options.withePathList.some(whitePath => {
+        // 支持完整匹配和通配符 * 匹配
+        if (whitePath === '*') return true;
+        
+        // 移除白名单路径中的文件后缀
+        const normalizedWhitePath = whitePath.replace(/\.[^/.]+$/, '');
+        
+        if (normalizedWhitePath.endsWith('*')) {
+          const prefix = normalizedWhitePath.slice(0, -1);
+          return normalizedPath.startsWith(prefix);
+        }
+        return normalizedPath === normalizedWhitePath;
+      });
+    };
+
     const handleRouteChange = (to) => {
-      if (to.path === '/') {
-        resetRetryCount();
-        // 给DOM一点时间来更新
-        setTimeout(() => {
-          initializeTyped();
-        }, 100);
-      } else {
+      if (!shouldInitialize(to.path)) {
         clearTimer();
         destroyTyped();
+        return;
       }
+
+      resetRetryCount();
+      // 给DOM一点时间来更新
+      setTimeout(() => {
+        initializeTyped();
+      }, 100);
     };
 
     // 监听路由变化
@@ -86,7 +112,7 @@ export default defineClientConfig({
     });
 
     onMounted(() => {
-      if (router.currentRoute.value.path === '/') {
+      if (shouldInitialize(router.currentRoute.value.path)) {
         initializeTyped();
       }
     });
